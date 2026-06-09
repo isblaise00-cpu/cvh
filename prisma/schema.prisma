@@ -1,0 +1,230 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Authentification ──────────────────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── Utilisateurs ─────────────────────────────────────────────────────────────
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  password     String?   // bcrypt hash
+  image        String?
+  role         Role      @default(EMPLOYEE)
+  department   String?
+  position     String?
+  phone        String?
+  bio          String?   @db.Text
+  managerId    String?
+  manager      User?     @relation("Hierarchy", fields: [managerId], references: [id])
+  subordinates User[]    @relation("Hierarchy")
+  analyses     Analysis[]
+  objectives   Objective[]
+  actionPlans  ActionPlan[]
+  accounts     Account[]
+  sessions     Session[]
+  subscription Subscription?
+  gdprConsent  Boolean   @default(false)
+  consentDate  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime? // Suppression douce RGPD
+
+  @@index([email])
+  @@index([managerId])
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  EMPLOYEE
+}
+
+enum Plan {
+  FREE
+  PRO
+  TEAM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+// ─── Analyses IA ──────────────────────────────────────────────────────────────
+
+model Analysis {
+  id              String         @id @default(cuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cvFileName      String?
+  jobFileName     String?
+  cvContentEnc    String?        @db.Text // contenu chiffré AES
+  jobContentEnc   String?        @db.Text // contenu chiffré AES
+  strengths       String[]       // Forces identifiées par l'IA
+  weaknesses      String[]       // Faiblesses identifiées par l'IA
+  opportunities   String[]       // Opportunités détectées
+  threats         String[]       // Risques détectés
+  matchScore      Int?           // Score d'adéquation 0-100
+  summary         String?        @db.Text
+  actionPlanId    String?        @unique
+  actionPlan      ActionPlan?    @relation(fields: [actionPlanId], references: [id])
+  analysisType    String         @default("CV_JOB") // CV_JOB | CV_CONTEXT
+  contextTitle    String?        // Nom du projet/entreprise/département
+  contextDesc     String?        @db.Text // Description de la situation (pour CV_CONTEXT)
+  status          AnalysisStatus @default(PENDING)
+  modelUsed       String?        // ex. "claude-opus-4-6"
+  tokensUsed      Int?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([userId])
+}
+
+enum AnalysisStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// ─── Objectifs ────────────────────────────────────────────────────────────────
+
+model Objective {
+  id           String            @id @default(cuid())
+  userId       String
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?           @db.Text
+  category     ObjectiveCategory
+  priority     Priority          @default(MEDIUM)
+  status       ObjectiveStatus   @default(NOT_STARTED)
+  progress     Int               @default(0) // 0-100
+  dueDate      DateTime?
+  aiSuggestion String?           @db.Text
+  milestones   Milestone[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([userId])
+}
+
+model Milestone {
+  id          String    @id @default(cuid())
+  objectiveId String
+  objective   Objective @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  title       String
+  completed   Boolean   @default(false)
+  dueDate     DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+enum ObjectiveCategory {
+  SKILLS
+  LEADERSHIP
+  PERFORMANCE
+  WELLBEING
+  CAREER
+  COLLABORATION
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ObjectiveStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  BLOCKED
+  CANCELLED
+}
+
+// ─── Abonnements ──────────────────────────────────────────────────────────────
+
+model Subscription {
+  id             String             @id @default(cuid())
+  userId         String             @unique
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan           Plan               @default(FREE)
+  status         SubscriptionStatus @default(ACTIVE)
+  monthsPaid     Int                @default(1)
+  periodStart    DateTime           @default(now())
+  periodEnd      DateTime
+  yengaReference String?            // référence de transaction YengaPay
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([userId])
+}
+
+// ─── Plans d'action ───────────────────────────────────────────────────────────
+
+model ActionPlan {
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  content     String      @db.Text // Plan généré par l'IA
+  steps       Json        // Array d'étapes structurées
+  analysis    Analysis?
+  status      PlanStatus  @default(DRAFT)
+  exportedAt  DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([userId])
+}
+
+enum PlanStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
