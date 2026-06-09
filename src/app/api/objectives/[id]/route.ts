@@ -14,12 +14,13 @@ const UpdateSchema = z.object({
 })
 
 // PATCH — Mise à jour partielle
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ success: false, error: 'Non authentifié.' }, { status: 401 })
   const userId = (session.user as { id: string }).id
 
-  const obj = await prisma.objective.findFirst({ where: { id: params.id, userId } })
+  const obj = await prisma.objective.findFirst({ where: { id, userId } })
   if (!obj) return NextResponse.json({ success: false, error: 'Objectif introuvable.' }, { status: 404 })
 
   const body = await req.json()
@@ -30,7 +31,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const { dueDate, ...rest } = parsed.data
   const updated = await prisma.objective.update({
-    where: { id: params.id },
+    where: { id },
     data: { ...rest, dueDate: dueDate ? new Date(dueDate) : undefined },
     include: { milestones: true },
   })
@@ -39,14 +40,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 }
 
 // DELETE — Suppression
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ success: false, error: 'Non authentifié.' }, { status: 401 })
   const userId = (session.user as { id: string }).id
 
-  const obj = await prisma.objective.findFirst({ where: { id: params.id, userId } })
+  const obj = await prisma.objective.findFirst({ where: { id, userId } })
   if (!obj) return NextResponse.json({ success: false, error: 'Objectif introuvable.' }, { status: 404 })
 
-  await prisma.objective.delete({ where: { id: params.id } })
+  await prisma.objective.delete({ where: { id } })
   return NextResponse.json({ success: true, data: null })
 }
