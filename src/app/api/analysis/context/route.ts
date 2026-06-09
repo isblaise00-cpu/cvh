@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
             userId,
             title: `Plan vers 100% — ${contextTitle} — ${new Date().toLocaleDateString('fr-FR')}`,
             content: result.actionPlan.map((s) => `• ${s.title}: ${s.description}`).join('\n'),
-            steps: result.actionPlan,
+            steps: JSON.parse(JSON.stringify(result.actionPlan)),
             status: 'DRAFT',
           },
         })
