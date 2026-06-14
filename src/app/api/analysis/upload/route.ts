@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
             userId,
             title: `Plan d'action — ${new Date().toLocaleDateString('fr-FR')}`,
             content: result.actionPlan.map((s) => `• ${s.title}: ${s.description}`).join('\n'),
-            steps: result.actionPlan as unknown[],
+            steps: JSON.parse(JSON.stringify(result.actionPlan)),
             status: 'DRAFT',
           },
         })

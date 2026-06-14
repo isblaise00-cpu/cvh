@@ -21,7 +21,11 @@ export async function GET() {
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, name: true, email: true, position: true, department: true, role: true, image: true, createdAt: true, updatedAt: true },
+    select: {
+      id: true, name: true, email: true, position: true, department: true,
+      role: true, image: true, createdAt: true, updatedAt: true,
+      phone: true, bio: true, managerId: true, gdprConsent: true, consentDate: true,
+    },
   })
 
   if (!user) return NextResponse.json({ success: false, error: 'Utilisateur introuvable.' }, { status: 404 })
@@ -51,7 +55,7 @@ export async function GET() {
   // Journalisation RGPD de l'export
   console.info(`[RGPD-export] user=${userId} at=${new Date().toISOString()}`)
 
-  return new NextResponse(buffer, {
+  return new NextResponse(new Uint8Array(buffer), {
     status: 200,
     headers: {
       'Content-Type': 'application/pdf',

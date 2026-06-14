@@ -96,7 +96,7 @@ function ScoreGauge({ score }: { score: number }) {
 
 export default function AnalysisResult({ analysis }: { analysis: FullAnalysis }) {
   const steps: ActionPlanStep[] = Array.isArray(analysis.actionPlan?.steps)
-    ? (analysis.actionPlan!.steps as ActionPlanStep[])
+    ? (analysis.actionPlan!.steps as unknown as ActionPlanStep[])
     : []
 
   return (
