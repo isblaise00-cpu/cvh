@@ -1,9 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 import AppShell from '@/components/layout/AppShell'
-import OrgChartView from '@/components/org-chart/OrgChartView'
 import type { OrgNode } from '@/types'
+
+const OrgChartView = dynamic(
+  () => import('@/components/org-chart/OrgChartView'),
+  { ssr: false, loading: () => <div className="text-center py-20 text-gray-400">Chargement…</div> }
+)
 
 export default function OrgChartPage() {
   const [tree, setTree] = useState<OrgNode[]>([])
