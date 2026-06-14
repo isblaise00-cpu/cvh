@@ -4,9 +4,9 @@
   "description": "Catalyseur de Valeur Humaine - Application de développement RH augmentée par l'IA",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3005",
+    "dev": "next dev -p 4000",
     "build": "next build",
-    "start": "next start -p 3005",
+    "start": "next start -p 4000",
     "lint": "next lint",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
